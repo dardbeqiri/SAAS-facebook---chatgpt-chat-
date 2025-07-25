@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id             String         @id @default(uuid())
+  name           String
+  billingStatus  BillingStatus  @default(pending)
+  users          User[]
+  messengerAccounts MessengerAccount[]
+  chatgptSettings ChatGptSettings?
+  conversations  Conversation[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+enum BillingStatus {
+  active
+  pending
+  suspended
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Hashed!
+  role      Role
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  superadmin
+  company_admin
+  user
+}
+
+model MessengerAccount {
+  id                  String   @id @default(uuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+  pageId              String
+  pageToken           String   // Store encrypted in prod!
+  conversations       Conversation[]
+}
+
+model Conversation {
+  id                  String   @id @default(uuid())
+  messengerAccountId  String
+  messengerAccount    MessengerAccount @relation(fields: [messengerAccountId], references: [id])
+  fbPsid              String
+  isPaused            Boolean @default(false)
+  messages            Message[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Message {
+  id              String   @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id])
+  sender          Sender
+  content         String
+  fbMessageId     String?
+  sentAt          DateTime @default(now())
+}
+
+enum Sender {
+  user
+  chatgpt
+  human_agent
+}
+
+model ChatGptSettings {
+  id            String   @id @default(uuid())
+  companyId     String   @unique
+  instructions  String
+  apiKey        String   // Store encrypted in prod!
+  usageLimit    Int
+  company       Company  @relation(fields: [companyId], references: [id])
+}
